@@ -31,9 +31,9 @@ for change in changes:
                 # Ensure KEY comes after PRIMARY
                 if index_key > index_primary:
                     # Ensure "PRIMARY KEY" comes after "CONSTRAINT"
-                    if index_primary_key > index_constraint:
+                    if index_primary > index_constraint:
                         # Extract the constraint name between "CONSTRAINT" and "PRIMARY KEY"
-                        if index_constraint + 1 < index_primary_key:
+                        if index_constraint + 1 < index_primary:
                             constraint_name = sql_list[index_constraint + 1]
 
                             # Check if the constraint name starts with "XPK_"
