@@ -28,7 +28,7 @@ for change in changes:
                 index_primary = [token.lower() for token in sql_list].index("primary")
                 index_key = [token.lower() for token in sql_list].index("key")
 
-                # Ensure KEY comes after PRIMARY
+                # Ensure "KEY" comes after "PRIMARY"
                 if index_key > index_primary:
                     # Ensure "PRIMARY KEY" comes after "CONSTRAINT"
                     if index_primary > index_constraint:
@@ -36,10 +36,10 @@ for change in changes:
                         if index_constraint + 1 < index_primary:
                             constraint_name = sql_list[index_constraint + 1]
 
-                            # Check if the constraint name starts with "XPK_"
-                            if not constraint_name.startswith("XPK_"):
+                            # Check if the constraint name starts with "XPK"
+                            if not constraint_name.startswith("XPK"):
                                 liquibase_status.fired = True
-                                status_message = f"Primary key constraint name '{constraint_name}' in table '{table_name}' does not start with 'XPK_'."
+                                status_message = f"Primary key constraint name '{constraint_name}' in table '{table_name}' does not start with 'XPK'."
                                 liquibase_logger.warning(status_message)
                                 liquibase_status.message = status_message
                                 sys.exit(1)
