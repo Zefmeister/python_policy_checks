@@ -14,8 +14,8 @@ for change in changes:
     # Generate SQL for the change and split it into a list of strings
     sql_list = liquibase_utilities.generate_sql(change).split()
 
-    # Locate "create" and "table" in the SQL list to handle CREATE TABLE statements
-    if "create" in map(str.casefold, sql_list) and "table" in map(str.casefold, sql_list):
+    # Locate "create" or "alter" and "table" in the SQL list to handle CREATE TABLE and ALTER TABLE statements
+    if any(keyword in map(str.casefold, sql_list) for keyword in ["create", "alter"]) and "table" in map(str.casefold, sql_list):
         index_table = [token.lower() for token in sql_list].index("table")
         
         # Extract table name if available after "table" keyword
