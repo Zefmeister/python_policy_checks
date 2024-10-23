@@ -9,48 +9,67 @@ liquibase_status = liquibase_utilities.get_status()
 # Retrieve all changes in the changeset
 changes = liquibase_utilities.get_changeset().getChanges()
 
+# Function to validate foreign key constraint names
+def validate_foreign_key_constraints(sql_list):
+    error_constraint_name = []
+    table_name = None
+    
+    # Loop through sql_list to check for "ALTER TABLE" or "CREATE TABLE" statements
+    for index, token in enumerate(sql_list):
+        token_lower = token.lower()
+
+        # Find table name after "table" keyword
+        if token_lower == "table" and index + 1 < len(sql_list):
+            table_name = sql_list[index + 1]
+
+        # Check for "CONSTRAINT", "FOREIGN", and "KEY"
+        if token_lower == "constraint":
+            if index + 1 < len(sql_list):
+                constraint_name = sql_list[index + 1]
+
+                # Validate that "FOREIGN" and "KEY" are present and follow "CONSTRAINT"
+                if "foreign" in map(str.casefold, sql_list) and "key" in map(str.casefold, sql_list):
+                    if not constraint_name.startswith("XFK"):
+                        error_constraint_name.append(constraint_name)
+
+    # Log warning if any foreign key constraint names don't meet the standard
+    if error_constraint_name:
+        liquibase_status.fired = True
+        status_message = f"Foreign key constraint name(s) '{error_constraint_name}' in table '{table_name}' do not start with 'XFK'."
+        liquibase_logger.warning(status_message)
+        liquibase_status.message = status_message
+        sys.exit(1)
+
+# Function to split sql_list by changesets (ALTER/CREATE TABLE statements)
+def split_changesets(sql_list):
+    changeset_splits = []
+    current_changeset = []
+
+    for token in sql_list:
+        if token.lower() in ["alter", "create"] and "table" in map(str.casefold, sql_list):
+            # If we encounter "ALTER" or "CREATE" and the current_changeset is not empty, save it
+            if current_changeset:
+                changeset_splits.append(current_changeset)
+                current_changeset = []
+        current_changeset.append(token)
+
+    # Append the final changeset if there is one
+    if current_changeset:
+        changeset_splits.append(current_changeset)
+
+    return changeset_splits
+
 # Loop through all changes
 for change in changes:
-
     # Generate SQL for the change and split it into a list of strings
     sql_list = liquibase_utilities.generate_sql(change).split()
 
-    # Locate "create" or "alter" and "table" in the SQL list to handle CREATE TABLE and ALTER TABLE statements
-    if any(keyword in map(str.casefold, sql_list) for keyword in ["create", "alter"]) and "table" in map(str.casefold, sql_list):
-        index_table = [token.lower() for token in sql_list].index("table")
-        
-        # Extract table name if available after "table" keyword
-        if index_table + 1 < len(sql_list):
-            table_name = sql_list[index_table + 1]
+    # Split sql_list into separate changesets
+    changesets = split_changesets(sql_list)
 
-            # Check for the "CONSTRAINT" keyword and ensure "FOREIGN KEY" follows
-            if "constraint" in map(str.casefold, sql_list) and "foreign" in map(str.casefold, sql_list) and "key" in map(str.casefold, sql_list):
-                error_constraint_name = []
-                index = []
-                for t in sql_list:
-                    t = t.lower()
-                    index_constraint = [token.lower() for token in sql_list].index(str(t.lower()))
-                    if t == "constraint":
-                        index_constraint_name = index_constraint + 1
-                        constraint_name = sql_list[index_constraint_name]
-                        index_foreign = [token.lower() for token in sql_list].index("foreign")
-                        if index_constraint + 2 == index_foreign:
-                            error_constraint_name.append(str(constraint_name))
-                liquibase_status.fired = True
-                status_message = f"Foreign key constraint name(s) '{error_constraint_name}' in table '{table_name}' does not start with 'XFK'."
-                liquibase_logger.warning(status_message)
-                liquibase_status.message = status_message
-                sys.exit(1)
-
-                    #if t.lower() == "constraint" and  index_constraint + 2 == "FOREIGN":
-                    #   constraint_name = sql_list[index_constraint + 1]
-                    #   if not constraint_name.startswith("XFK"):
-                    #       error_constraint_name =+ constraint_name
-                           #liquibase_status.fired = True
-                           #status_message = f"Foreign key constraint name(s) '{error_constraint_name}' in table '{table_name}' does not start with 'XFK'."
-                           #liquibase_logger.warning(status_message)
-                           #liquibase_status.message = status_message
-                           #sys.exit(1)
+    # Validate each changeset for foreign key constraint names
+    for changeset in changesets:
+        validate_foreign_key_constraints(changeset)
 
 # Default return code
 False
